@@ -35,7 +35,17 @@ func (s *Store) Get(key string) string {
 	if v, ok := s.lru.get(key); ok {
 		return v
 	}
-	return ""
+	var v string
+	_ = s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("kv"))
+		val := b.Get([]byte(key))
+		if val != nil {
+			v = string(val)
+			s.lru.add(key, v)
+		}
+		return nil
+	})
+	return v
 }
 
 func (s *Store) Apply(cmd any) any {
@@ -50,6 +60,7 @@ func (s *Store) Apply(cmd any) any {
 		_ = s.db.Update(func(tx *bolt.Tx) error {
 			return tx.Bucket([]byte("kv")).Delete([]byte(c.Key))
 		})
+		s.lru.remove(c.Key)
 
 	case GetCmd:
 		return s.Get(c.Key)
