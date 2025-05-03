@@ -20,9 +20,8 @@ type Store struct {
 
 func New(db *bolt.DB, maxEntries int) *Store {
 	_ = db.Update(func(tx *bolt.Tx) error {
-		_ = tx.DeleteBucket([]byte("kv"))
-		_, _ = tx.CreateBucket([]byte("kv"))
-		return nil
+		_, err := tx.CreateBucketIfNotExists([]byte("kv"))
+		return err
 	})
 	return &Store{db: db, lru: newLRU(maxEntries)}
 }
